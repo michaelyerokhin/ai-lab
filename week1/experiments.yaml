@@ -1,0 +1,92 @@
+# USD per 1M tokens, keyed by deployment name. Used for cost estimates.
+# Verify against https://azure.microsoft.com/en-us/pricing/details/azure-openai/
+pricing:
+  gpt-5-mini:   {input: 0.25, output: 2.00}
+  gpt-4.1-mini: {input: 0.40, output: 1.60}
+
+experiments:
+  - name: system-message-terse
+    system: "You are a terse senior MSP engineer."
+    user: "A user can't log in to Outlook. What should we do?"
+    deployment: gpt-5-mini
+    runs: 1
+
+  - name: system-message-json
+    system: >
+      Reply only in JSON with fields:
+      likely_cause, steps, escalate (true or false).
+    user: "A user can't log in to Outlook. What should we do?"
+    deployment: gpt-5-mini
+    runs: 1
+
+  - name: system-message-numbered
+    system: "Reply only with numbered troubleshooting steps"
+    user: "A user can't log in to Outlook. What should we do?"
+    deployment: gpt-5-mini
+    runs: 1
+  
+  - name: system-message-nontechnical
+    system: "Explain to a non-technical small-business owner"
+    user: "A user can't log in to Outlook. What should we do?"
+    deployment: gpt-5-mini
+    runs: 1
+    
+  - name: few-shot-none
+    system: "Classify each ticket as Account, Email, Hardware, Network or Security. One label per line."
+    user: |
+      1. Can't connect to VPN from home
+      2. Got an email asking me to verify my bank password
+      3. Outlook keeps asking for my password
+      4. Monitor flickers when I move the cable
+      5. New hire needs access to the shared drive
+    deployment: gpt-5-mini
+    runs: 1
+    
+  - name: few-shot-three
+    system: "Classify each ticket as Account, Email, Hardware, Network or Security. One label per line."
+    examples:
+      - user: |
+          1. Laptop won't power on
+          2. Wi-Fi drops every few minutes
+        assistant: |
+          1. Hardware
+          2. Network
+      - user: |
+          1. Locked out after too many login attempts
+          2. Suspicious attachment from an unknown sender
+        assistant: |
+          1. Account
+          2. Security
+      - user: |
+          1. Emails to a client keep bouncing back
+        assistant: |
+          1. Email
+    user: |
+      1. Can't connect to VPN from home
+      2. Got an email asking me to verify my bank password
+      3. Outlook keeps asking for my password
+      4. Monitor flickers when I move the cable
+      5. New hire needs access to the shared drive
+    deployment: gpt-5-mini
+    runs: 1
+    
+  - name: temperature-variations-low
+    system: "Help the user with their problem."
+    user: "I can't login to outlook. What should I do?"
+    temperature: 0
+    deployment: gpt-4.1-mini
+    runs: 3
+
+  - name: temperature-variations-medium
+    system: "Help the user with their problem."
+    user: "I can't login to outlook. What should I do?"
+    temperature: 0.7
+    deployment: gpt-4.1-mini
+    runs: 3
+  
+  - name: temperature-variations-high
+    system: "Help the user with their problem."
+    user: "I can't login to outlook. What should I do?"
+    temperature: 1.5
+    deployment: gpt-4.1-mini
+    runs: 3

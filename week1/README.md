@@ -1,19 +1,85 @@
-# Week 1: Hello Foundry Model
+# Week 1: Hello Foundry Model + Prompt Lab
 
-Ask the configured Azure Foundry model one question:
+## Setup
 
 ```bash
-cp .env.example .env
+python -m pip install -r requirements.txt
+cp week1/.env.example week1/.env   # then fill in your endpoint
+az login                           # DefaultAzureCredential picks this up
+```
+
+`week1/.env` needs three values:
+
+| Variable | Meaning |
+|---|---|
+| `AZURE_ENDPOINT` | Foundry OpenAI-compatible endpoint, ending in `/openai/v1` |
+| `DEPLOYMENT_NAME` | Default deployment (a reasoning model, e.g. gpt-5-mini) |
+| `NONREASONING_DEPLOYMENT` | Second deployment that accepts `temperature` (e.g. gpt-4.1-mini) |
+
+Shared connection code (auth, deployment selection, temperature fallback, cost
+estimates) lives in `client.py` and is used by both scripts.
+
+## hello_model.py: ask one question
+
+```bash
 python week1/hello_model.py "What is an MSP?"
 ```
 
-Set `AZURE_ENDPOINT` and `DEPLOYMENT_NAME` in `.env`. Sign in with an Entra ID
-credential supported by `DefaultAzureCredential` before running the script.
-Install dependencies with `python -m pip install -r requirements.txt`.
+Prints the answer, token counts and an estimated cost for the default deployment.
 
-The cost line is an estimate using USD rates of $0.25 per million input tokens
-and $2.00 per million output tokens for GPT-5 mini. Azure rates depend on the
-deployment type, region, and agreement; verify the applicable rate on the
-[Azure OpenAI pricing page](https://azure.microsoft.com/en-us/pricing/details/azure-openai/).
+## prompt_lab.py: run prompt experiments
 
-Run the test with `python -m pytest week1/test_hello_model.py`.
+```bash
+python week1/prompt_lab.py                      # reads week1/experiments.yaml
+python week1/prompt_lab.py --config other.yaml --out other.md
+```
+
+Writes `week1/results.md`: for each experiment the deployment and settings
+used, every answer with its token counts, and a summary table ending in the
+total estimated cost.
+
+### experiments.yaml
+
+```yaml
+pricing:                 # USD per 1M tokens, keyed by deployment name
+  gpt-5-mini:   {input: 0.25, output: 2.00}
+  gpt-4.1-mini: {input: 0.40, output: 1.60}
+
+experiments:
+  - name: few-shot-three         # required, unique
+    user: "Classify: ..."        # required
+    runs: 1                      # required, >= 1
+    system: "You classify tickets."   # optional
+    examples:                    # optional few-shot pairs
+      - user: "Laptop won't power on"
+        assistant: "Hardware"
+    temperature: 0.7             # optional
+    deployment: gpt-4.1-mini     # optional; must match DEPLOYMENT_NAME or
+                                 # NONREASONING_DEPLOYMENT (default: DEPLOYMENT_NAME)
+```
+
+### Error handling
+
+- **Setup errors stop the run** before anything is written (exit code 2): bad
+  YAML, an unknown field, a missing `.env` value, an unknown deployment, a
+  deployment with no pricing, or an Azure sign-in failure.
+- **Errors in a single run are recorded** in `results.md` and the lab continues
+  (exit code 1 if any run failed, otherwise 0).
+- **Temperature fallback:** reasoning models such as gpt-5-mini reject
+  `temperature`. The script logs a warning, retries without it, and the report
+  shows e.g. `0.2 (not applied)`.
+
+### Pricing
+
+Costs are estimates. Azure rates depend on deployment type, region and
+agreement; check the
+[Azure OpenAI pricing page](https://azure.microsoft.com/en-us/pricing/details/azure-openai/)
+and update the `pricing:` block. `hello_model.py` reads the same block.
+
+## Tests
+
+```bash
+python -m pytest week1
+```
+
+The tests use fake model clients and never call Azure.

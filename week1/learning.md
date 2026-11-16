@@ -34,3 +34,12 @@ that a missing .env variable gives a clear error message.
 ## 2. Microsoft Foundry
 
 Microsoft Foundry is a Microsoft service that provides access to LLMs and other AI models. I can deploy a model there, then connect to it and send it prompts from my own code (in this project, via the `openai` Python package using Entra ID auth instead of API keys).
+
+## 3. Prompt experiments
+
+I ran prompt experiments with `week1/prompt_lab.py` (settings in `experiments.yaml`, results in `results.md`) and compared the answers, token counts and costs.
+
+- **System messages** control tone, length and format, but vague words like "terse" get ignored. Use specific limits.
+- **Few-shot examples** enforce format. They improve accuracy only where the model would otherwise struggle.
+- **Temperature** works on non-reasoning models. Its effect is small on common questions and larger on open-ended ones.
+- **Reasoning models** bill hidden thinking tokens. Use cheaper non-reasoning models for simple tasks.
