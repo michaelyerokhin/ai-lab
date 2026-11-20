@@ -1,5 +1,15 @@
 # Week 1: Hello Foundry Model + Prompt Lab
 
+## Layout
+
+```
+week1/
+├── *.py        # the code: client, hello_model, prompt_lab, triage, output_lab, schemas
+├── config/     # YAML inputs: experiments.yaml, tickets_list.yml
+├── docs/       # notes (learning.md) and generated reports (results.md, ticket_output_results.md)
+└── tests/      # pytest tests; conftest.py lets them import the modules above
+```
+
 ## Setup
 
 ```bash
@@ -30,11 +40,11 @@ Prints the answer, token counts and an estimated cost for the default deployment
 ## prompt_lab.py: run prompt experiments
 
 ```bash
-python week1/prompt_lab.py                      # reads week1/experiments.yaml
+python week1/prompt_lab.py                      # reads week1/config/experiments.yaml
 python week1/prompt_lab.py --config other.yaml --out other.md
 ```
 
-Writes `week1/results.md`: for each experiment the deployment and settings
+Writes `week1/docs/results.md`: for each experiment the deployment and settings
 used, every answer with its token counts, and a summary table ending in the
 total estimated cost.
 
@@ -75,6 +85,51 @@ Costs are estimates. Azure rates depend on deployment type, region and
 agreement; check the
 [Azure OpenAI pricing page](https://azure.microsoft.com/en-us/pricing/details/azure-openai/)
 and update the `pricing:` block. `hello_model.py` reads the same block.
+
+## triage.py: triage one ticket with structured outputs
+
+```bash
+python week1/triage.py "Printer on floor 2 is jammed"
+```
+
+Prints a `TicketTriage` result as JSON (title, category, priority,
+likely_cause, steps, escalate). It always uses `NONREASONING_DEPLOYMENT` at
+temperature 0, with structured outputs via `client.responses.parse(text_format=TicketTriage)`
+(openai SDK 3.x). Exit code 1 if the model refuses or the call fails, 2 for
+setup errors. Reuse it from code with `triage.triage_ticket(text, client, deployment)`.
+
+The schema (`Category`, `Priority`, `TicketTriage`), the shared system prompt
+and the validator live in `schemas.py`.
+
+## output_lab.py: compare three levels of output control
+
+```bash
+python week1/output_lab.py        # reads week1/config/tickets_list.yml
+```
+
+Sends every ticket through three levels, with the same system message and no retries:
+
+| Level | Output control |
+|---|---|
+| `prompt` | the system message asks for JSON and lists the fields |
+| `json_mode` | the same + JSON mode (`text.format = json_object`) |
+| `schema` | structured outputs with the `TicketTriage` model |
+
+Every output is scored the same way: it is loaded into `TicketTriage` with
+Pydantic, strictly. JSON wrapped in prose or code fences, wrong types and
+extra fields all count as invalid. Refusals are recorded and counted
+separately. Writes `week1/docs/ticket_output_results.md`: each raw output with its
+verdict, plus a per-level summary of % valid shape, % correct category,
+refusals, errors, tokens and cost. Percentages are out of all tickets.
+
+Tickets file format:
+
+```yaml
+tickets:
+  - id: T01
+    text: "Laptop won't turn on."
+    expected_category: Hardware   # a Category value, incl. Other
+```
 
 ## Tests
 

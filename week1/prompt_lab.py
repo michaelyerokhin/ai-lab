@@ -26,8 +26,8 @@ from client import (
 )
 
 WEEK1_DIR = Path(__file__).resolve().parent
-DEFAULT_CONFIG = WEEK1_DIR / "experiments.yaml"
-DEFAULT_OUTPUT = WEEK1_DIR / "results.md"
+DEFAULT_CONFIG = WEEK1_DIR / "config" / "experiments.yaml"
+DEFAULT_OUTPUT = WEEK1_DIR / "docs" / "results.md"
 
 REQUIRED_KEYS = {"name", "user", "runs"}
 OPTIONAL_KEYS = {"system", "examples", "temperature", "deployment"}

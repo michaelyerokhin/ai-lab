@@ -177,3 +177,89 @@ def test_create_model_client_uses_foundry_endpoint_and_token(monkeypatch):
     assert isinstance(client.create_model_client(CONFIG), ModelClient)
     assert created["base_url"] == CONFIG.endpoint
     assert created["api_key"]() == "token"
+
+
+# ------------------------------------------------- respond(): output levels
+
+
+class RecordingSDK:
+    """Fake SDK exposing both responses.create and responses.parse."""
+
+    def __init__(self, response):
+        self.response = response
+        self.calls = []
+        self.responses = SimpleNamespace(
+            create=lambda **kw: self._record("create", kw),
+            parse=lambda **kw: self._record("parse", kw),
+        )
+
+    def _record(self, method, kwargs):
+        self.calls.append((method, kwargs))
+        return self.response
+
+
+def message_response(*parts, input_tokens=3, output_tokens=4):
+    text = "".join(p.text for p in parts if p.type == "output_text")
+    return SimpleNamespace(
+        output=[SimpleNamespace(type="message", content=list(parts))],
+        output_text=text,
+        usage=SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens),
+    )
+
+
+def text_part(text):
+    return SimpleNamespace(type="output_text", text=text)
+
+
+def refusal_part(message):
+    return SimpleNamespace(type="refusal", refusal=message)
+
+
+MESSAGES = [{"role": "user", "content": "ticket"}]
+
+
+class DummySchema:
+    pass
+
+
+@pytest.mark.parametrize(
+    "mode, method, extra",
+    [
+        ("prompt", "create", {}),
+        ("json_mode", "create", {"text": {"format": {"type": "json_object"}}}),
+        ("schema", "parse", {"text_format": DummySchema}),
+    ],
+)
+def test_respond_uses_the_right_sdk_call_per_level(mode, method, extra):
+    sdk = RecordingSDK(message_response(text_part('{"a": 1}')))
+
+    raw = ModelClient(sdk).respond(
+        "chat-model", MESSAGES, mode=mode, schema=DummySchema, temperature=0
+    )
+
+    assert sdk.calls == [
+        (method, {"model": "chat-model", "input": MESSAGES, "temperature": 0, **extra})
+    ]
+    assert raw == client.RawResponse('{"a": 1}', None, 3, 4)
+
+
+def test_respond_detects_refusal():
+    sdk = RecordingSDK(message_response(refusal_part("I can't help with that.")))
+
+    raw = ModelClient(sdk).respond("chat-model", MESSAGES, mode="schema", schema=DummySchema)
+
+    assert raw.refusal == "I can't help with that."
+    assert raw.text == ""
+
+
+def test_respond_schema_mode_requires_a_model():
+    with pytest.raises(ValueError, match="needs a Pydantic model"):
+        ModelClient(RecordingSDK(None)).respond("chat-model", MESSAGES, mode="schema")
+
+
+def test_respond_does_not_retry_on_errors():
+    sdk = FakeSDK(bad_request("Unsupported value: 'temperature'", param="temperature"))
+
+    with pytest.raises(openai.BadRequestError):
+        ModelClient(sdk).respond("chat-model", MESSAGES, temperature=0)
+    assert len(sdk.calls) == 1

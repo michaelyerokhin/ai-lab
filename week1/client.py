@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 
 WEEK1_DIR = Path(__file__).resolve().parent
 ENV_FILE = WEEK1_DIR / ".env"
-PRICING_FILE = WEEK1_DIR / "experiments.yaml"
+PRICING_FILE = WEEK1_DIR / "config" / "experiments.yaml"
 TOKENS_PER_MILLION = 1_000_000
 # Entra ID scope for Azure AI Foundry. Foundry exposes deployed models through an
 # OpenAI-compatible /openai/v1 endpoint, so the standard OpenAI SDK works as-is
@@ -70,6 +70,20 @@ class Completion:
     output_tokens: int
     # None when no temperature was requested; False when the model rejected it.
     temperature_applied: bool | None
+
+
+@dataclass(frozen=True)
+class RawResponse:
+    """What the model actually sent back, before any validation."""
+
+    text: str
+    refusal: str | None  # the refusal message when the model declined
+    input_tokens: int
+    output_tokens: int
+
+
+# How much control respond() applies to the output format.
+OUTPUT_MODES = ("prompt", "json_mode", "schema")
 
 
 def load_config() -> ModelConfig:
@@ -184,6 +198,57 @@ class ModelClient:
             output_tokens=response.usage.output_tokens,
             temperature_applied=applied,
         )
+
+    def respond(
+        self,
+        deployment: str,
+        messages: list[dict[str, str]],
+        *,
+        mode: str = "prompt",
+        schema: type | None = None,
+        temperature: float | None = None,
+    ) -> RawResponse:
+        """One call with a chosen level of output control, and no retries.
+
+        prompt     plain request; the format comes only from the messages
+        json_mode  JSON mode: the reply is guaranteed to be valid JSON
+        schema     structured outputs via responses.parse(text_format=schema):
+                   the reply is constrained to the Pydantic model's JSON schema
+        """
+        if mode not in OUTPUT_MODES:
+            raise ValueError(f"mode must be one of {OUTPUT_MODES}, got {mode!r}")
+        request: dict[str, Any] = {"model": deployment, "input": messages}
+        if temperature is not None:
+            request["temperature"] = temperature
+
+        if mode == "schema":
+            if schema is None:
+                raise ValueError("mode='schema' needs a Pydantic model in 'schema'.")
+            response = self._sdk.responses.parse(**request, text_format=schema)
+        elif mode == "json_mode":
+            response = self._sdk.responses.create(
+                **request, text={"format": {"type": "json_object"}}
+            )
+        else:
+            response = self._sdk.responses.create(**request)
+
+        if response.usage is None:
+            raise RuntimeError("The model response did not include token usage.")
+        return RawResponse(
+            text=response.output_text,
+            refusal=find_refusal(response),
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+        )
+
+
+def find_refusal(response: Any) -> str | None:
+    """Return the refusal message if any output content part is a refusal."""
+    for item in getattr(response, "output", None) or []:
+        for part in getattr(item, "content", None) or []:
+            if getattr(part, "type", None) == "refusal":
+                return part.refusal
+    return None
 
 
 def create_model_client(config: ModelConfig) -> ModelClient:

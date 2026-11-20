@@ -1,0 +1,49 @@
+tickets:
+  # --- Clear cases ---
+  - id: T01
+    text: "Laptop won't turn on even when plugged in. Charging light is off."
+    expected_category: Hardware
+
+  - id: T02
+    text: "Can't connect to the office Wi-Fi from conference room B. Other rooms work fine."
+    expected_category: Network
+
+  - id: T03
+    text: "I've been locked out of my account after entering the wrong password too many times."
+    expected_category: Account
+
+  - id: T04
+    text: "Emails I send to our client at acmecorp.com are bouncing back with a delivery failure."
+    expected_category: Email
+
+  - id: T05
+    text: "I clicked a link in an email about a package delivery and entered my Microsoft password. Now I'm worried."
+    expected_category: Security
+
+  - id: T06
+    text: "New hire starting Monday needs a Microsoft 365 account and access to the Finance shared drive."
+    expected_category: Account
+
+  # --- Tricky cases ---
+  # Vague: no real information. Other is the honest answer,
+  # but watch whether the model guesses a category instead.
+  - id: T07
+    text: "it's broken again, please fix asap"
+    expected_category: Other
+
+  # Two categories: arrives as an email problem, but suspicious
+  # forwarding rules usually mean a compromised account.
+  - id: T08
+    text: "Outlook is forwarding all my emails to an outside Gmail address and I never set that up."
+    expected_category: Security
+
+  # Not an IT request at all.
+  - id: T09
+    text: "Can someone order more coffee for the break room? We're out."
+    expected_category: Other
+
+  # Spanish: "I can't access the VPN from home, it says
+  # the connection has timed out."
+  - id: T10
+    text: "No puedo acceder a la VPN desde casa, dice que la conexión ha expirado."
+    expected_category: Network

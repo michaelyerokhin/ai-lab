@@ -31,6 +31,11 @@ that a missing .env variable gives a clear error message.
 - **The AI defines** the line-by-line implementation within those guardrails.
 - Asking for a **plan before coding** lets me review the approach before any code is written.
 
+### Agentic engineering vs. prompt engineering
+
+- **Agentic engineering:** spec-writing directs a coding agent (Claude in VS Code) to build software.
+- **Prompt engineering:** the instructions my app sends to the model while it runs: system messages, examples, the user message. That was Day 2.
+
 ## 2. Microsoft Foundry
 
 Microsoft Foundry is a Microsoft service that provides access to LLMs and other AI models. I can deploy a model there, then connect to it and send it prompts from my own code (in this project, via the `openai` Python package using Entra ID auth instead of API keys).

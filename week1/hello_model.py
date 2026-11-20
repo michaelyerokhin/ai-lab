@@ -13,6 +13,12 @@ from client import (
     pricing_for,
 )
 
+""" Ask the configured Azure Foundry model.
+
+    - argv (argument vector): optional list of command-line arguments
+      * if argv is none, it is used instead of sys.argv[1:] (will read the CLI)
+      * if argv is provided, is ignores the CLI and uses the provided list of arguments instead
+"""
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Ask the configured Azure Foundry model.")
